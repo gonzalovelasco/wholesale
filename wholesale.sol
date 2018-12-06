@@ -45,7 +45,9 @@ contract Wholesale {
     }
 
     function createOrder (uint _price, uint _quantity, uint _limitDay, uint _mode) public returns (uint) {
-
+        require(_quantity > 0, "Error quantity");
+        require(_price > 0, "Error price");
+        require(_limitDay > 0, "Error limit day");
         Order memory newOrder;
         newOrder.price = _price;
         newOrder.quantity = _quantity;
@@ -60,14 +62,13 @@ contract Wholesale {
 
     }
 
-    function addParticipant (uint _orderId) public payable {
+    function addParticipant (uint _orderId, uint quantity) public payable {
         //Validate exists order id
         Order storage _order = orders[_orderId];
-        require(_order.status == 0);
-        require(msg.value % _order.price == 0);
-        uint quantity = msg.value / _order.price;
-        require(quantity > 0);
-        require(quantity <= _order.quantity - _order.currentQuantity);
+        require(_order.status == 0,"Error status");
+        require(msg.value % _order.price == 0, "Error mod");
+        require(quantity > 0, "Error quantity");
+        require(quantity <= _order.quantity - _order.currentQuantity, "Error quantity vs currentQuantity");
         Participant memory participant;
         participant._address = msg.sender;
         participant.money = msg.value;
@@ -87,6 +88,7 @@ contract Wholesale {
     function removeParticipant (uint _orderId) public {
         //Validate exists order id
         Order storage _order = orders[_orderId];
+        require(_order.status == 0,"Error status");
         Participant memory participant = _order.participants[msg.sender];
         require(participant.active);
         participant.active = false;
@@ -99,7 +101,8 @@ contract Wholesale {
     function cancelOrder (uint _orderId) public onlyOrderOwner(_orderId) {
         //Validate exists order id
         Order storage _order = orders[_orderId];
-        require(_order.status == 1);
+        require(_order.status == 1, "Error status");
+        require(_order.totalParticipants > 0, "Error total participants");
         for (uint i = 0; i < _order.participantsAddrress.length; i++) {
             address payable participantAddress = _order.participantsAddrress[i];
             if (_order.participants[participantAddress].active) {
