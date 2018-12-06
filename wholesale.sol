@@ -9,6 +9,11 @@ contract Wholesale {
         bool active;
     }
 
+    //Status:
+    //0 -> active
+    //1 -> complete
+    //2 -> terminate
+    //3 -> cancel
     struct Order {
         uint id;
         uint price;
@@ -20,6 +25,7 @@ contract Wholesale {
         uint status;
         address owner;
         uint totalParticipants;
+        address payable [] participantsAddrress;
         mapping (address => Participant) participants;
     }
 
@@ -71,6 +77,7 @@ contract Wholesale {
         _order.founds += msg.value;
         _order.totalParticipants++;
         _order.participants[msg.sender] = participant;
+        _order.participantsAddrress.push(msg.sender);
         if (_order.currentQuantity == _order.quantity) {
             _order.status = 1;
             emit FinishWholesale(_order.id);
@@ -89,7 +96,22 @@ contract Wholesale {
         msg.sender.transfer(participant.money);
     }
 
-    function cancelOrder (uint _orderId) public {
+    function cancelOrder (uint _orderId) public onlyOrderOwner(_orderId) {
+        //Validate exists order id
+        Order storage _order = orders[_orderId];
+        require(_order.status == 1);
+        for (uint i = 0; i < _order.participantsAddrress.length; i++) {
+            address payable participantAddress = _order.participantsAddrress[i];
+            if (_order.participants[participantAddress].active) {
+                _order.participants[participantAddress].active = false;
+                _order.quantity -= _order.participants[participantAddress].quantity;
+                _order.totalParticipants--;
+                _order.founds -= _order.participants[participantAddress].money;
+                participantAddress.transfer(_order.participants[participantAddress].money);
+            }
+        }
+        _order.status = 3;
+        totalOrders--;
     }
 
     function withdraw (uint _orderId) public onlyOrderOwner(_orderId) {
@@ -98,4 +120,5 @@ contract Wholesale {
         _order.status = 2;
         msg.sender.transfer(_order.founds);
     }
+
 }
